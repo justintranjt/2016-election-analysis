@@ -1,34 +1,15 @@
----
-title: "2016 Presidential Election Analysis"
-author: "Justin Tran"
-date: \today
-output:
-  pdf_document: 
-    fig_caption: yes
-    toc: no
-fontsize: 10pt
-geometry: margin=1in
----
-
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(fig.align="center", fig.height=4.5, fig.width=5, collapse=TRUE, comment="", prompt=FALSE, echo = TRUE, cache=TRUE, autodep=TRUE, tidy=TRUE, tidy.opts=list(width.cutoff=50),
-options(scipen=999), warning=FALSE)
-options(width=75)
-```
-
 ## Section 1
 
 ### Part a
-```{r}
+
 load("aug_poll.RData")
 oct_poll = subset(aug_poll, aug_poll$end.date >= as.Date('10/01/2016', format="%m/%d/%Y"))
 nrow(oct_poll)
-```
-I created a subset for `oct_poll` that contains all polls ending on or after October 1st. It has `nrow(oct_poll)` rows.
+
+# I created a subset for `oct_poll` that contains all polls ending on or after October 1st. It has `r nrow(oct_poll)` rows.
 
 
 ### Part b
-```{r}
 poll.oct2016 = subset(oct_poll, select = -c(grade, end.date)) # Remove unnecessary columns
 poll.oct2016$rawpoll_clinton = (poll.oct2016$rawpoll_clinton / 100) * poll.oct2016$samplesize # Transform to pop. from percentage
 poll.oct2016$rawpoll_trump = (poll.oct2016$rawpoll_trump / 100) * poll.oct2016$samplesize # Transform to pop. from percentage
@@ -43,12 +24,11 @@ by.trump = by.trump['x'] / by.sample['x'] # Aggregate proportion of clinton vote
 poll.oct2016 = data.frame(by.sample, by.clinton, by.trump)
 colnames(poll.oct2016) =  c("state", "samplesize", "rawpoll_clinton", "rawpoll_trump")
 head(poll.oct2016)
-```
+
 To create this dataframe, I had to handle the aggregation of percentages. I first changed the `rawpoll` columns to show population rather than percentage. Then, I aggregated the `samplesize` by state by summing. Next, I aggregated `rawpoll` proportions for Clinton and Trump by summing up the populations by state then dividing by `samplesize` per state. Finally, I combined each of these data frames together.
 
 
 ## Section 2
-```{r}
 true.perc = read.csv(file = "2016_election_result.csv")
 true.perc = merge(poll.oct2016, true.perc, by = "state")
 
@@ -58,41 +38,32 @@ deviation = poll.diff - vote.diff
 
 election = data.frame(true.perc, poll.diff, vote.diff, deviation)
 head(election)
-```
+
 I loaded the .csv file and merged the resulting dataframe with `poll.oct2016` to create `true.perc`. I then calculated the 3 additional column values `poll.diff`, `vote.diff`, and `deviation`. Finally, I merged these additional columns with `true.perc` to create `election`.
 
 
 ## Section 3
 
 ### part a
-```{r}
-# Number of SE units each element in poll.diff is away from vote.diff
-std.unit = election$deviation / sd(election$poll.diff)
-# If poll.diff and vote.diff have the same sign
-same.sign  = election$poll.diff * election$vote.diff > 0
+std.unit = election$deviation / sd(election$poll.diff) # Number of SE units each element in poll.diff is away from vote.diff
+same.sign  = election$poll.diff * election$vote.diff > 0 # If poll.diff and vote.diff have the same sign
 
-# Standard error of the paired t test
-significant.se = sqrt(var(election$rawpoll_trump) / length(election$rawpoll_trump) + var(election$rawpoll_clinton) / length(election$rawpoll_clinton)) 
+significant.se = sqrt(var(election$rawpoll_trump) / length(election$rawpoll_trump) + var(election$rawpoll_clinton) / length(election$rawpoll_clinton)) # Standard error of the paired t test
 
-# Upper value of the CI for estimating prop. Trump supporters - prop. Clinton supporters
-significant.high = apply(election[,3:4], 2, function(x) election$rawpoll_trump - election$rawpoll_clinton + 1 * (qnorm(.975) * significant.se))
-# Remove unnec. columns
-significant.high = subset(significant.high, select = -c(rawpoll_trump))
+significant.high = apply(election[,3:4], 2, function(x) election$rawpoll_trump - election$rawpoll_clinton + 1 * (qnorm(.975) * significant.se)) # Upper value of the CI for estimating prop. Trump supporters - prop. Clinton supporters
+significant.high = subset(significant.high, select = -c(rawpoll_trump)) # Remove unnec. columns
 
-# Lower value of the CI for estimating prop. Trump supporters - prop. Clinton supporters
-significant.low = apply(election[,3:4], 2, function(x) election$rawpoll_trump - election$rawpoll_clinton - 1 * (qnorm(.975) * significant.se))
-# Remove unnec. columns
-significant.low = subset(significant.low, select = -c(rawpoll_clinton)) 
+significant.low = apply(election[,3:4], 2, function(x) election$rawpoll_trump - election$rawpoll_clinton - 1 * (qnorm(.975) * significant.se)) # Lower value of the CI for estimating prop. Trump supporters - prop. Clinton supporters
+significant.low = subset(significant.low, select = -c(rawpoll_clinton)) # Remove unnec. columns
 
-# Dataframe displaying true if the CI doesn't contain 0 and false otherwise
-significant = data.frame(significant.low, significant.high)
+
+significant = data.frame(significant.low, significant.high) # Dataframe displaying true if the CI doesn't contain 0 and false otherwise
 head(significant) # Temporary column names that will be overwritten
 significant = !(significant[,1] < 0 & significant[,2] > 0)
 
-# Add significant dataframe to election dataframe
-election = data.frame(election, std.unit, same.sign, significant)
-head(election)
-```
+election = data.frame(election, std.unit, same.sign, significant) # Add significant dataframe to election dataframe
+head election)
+
 I first created the `std.unit` vector using the deviation column of `election` divided by the standard deviation of `vote.diff` column. I used `deviation` because it is the difference between `poll.diff` and `vote.diff`. 
 
 I created `same.sign` by checking if the product of `poll.diff` and `vote.diff` was positive indicating the same signs.
@@ -101,7 +72,6 @@ For `significant`, I assume all samples are simple random samples and the observ
 
 
 ### part b
-```{r}
 sum(election$significant == T) # Number of CIs not including 0 in interval
 
 sum(election$significant == T & election$same.sign == T) # Correct prediction for those not including 0
@@ -109,21 +79,17 @@ sum(election$significant == T & election$same.sign == T) # Correct prediction fo
 sum(election$significant == F) # Number of CIs including 0 in interval
 
 sum(election$significant == F & election$same.sign == T) # Correct prediction for those including 0
-```
+
 The winning candidate was predicted correctly if `same.sign` had a FALSE value for the state. There were `r sum(election$significant == T)` states that did not include 0 in the confidence interval and `r sum(election$significant == F)` states that did include 0 in the confidence interval. For those not including 0, `r sum(election$significant == T & election$same.sign == T)` states predicted the election for their state correctly. For those including 0, `r sum(election$significant == F & election$same.sign == T)` states predicted the election for their state correctly.
 
 ### part c
-```{r}
-# Incorrect predictions by states with strictly pos. or neg. intervals
-sum(election$significant == T & election$same.sign == F)
-# States associated with the above CIs
-election$state[election$significant == T & election$same.sign == F]
-```
+sum(election$significant == T & election$same.sign == F) # Incorrect predictions by states with strictly pos. or neg. intervals
+election$state[election$significant == T & election$same.sign == F] # States associated with the above CIs
+
 The number of CIs that give either strictly-positive or strictly-negative interval estimates and predict the winner of the state wrong is given by `sum(election$significant == T & election$same.sign == F)` and its value is `r sum(election$significant == T & election$same.sign == F)`. The 3 states were `r election$state[election$significant == T & election$same.sign == F]`.
 
 ### part d
 Plot a scatterplot and a histogram of `std.unit`.  Do the errors in the estimates look like they have mean zero?
-```{r}
 plot(election$std.unit, xlab = "Index of States (including Washington D.C.) in 
 	 Alphab. Order", ylab = "Standard Error Units (poll.diff)", main = "Number 
 	 of SE Units Poll.Diff is from Vote.Diff (all US States + D.C.)", cex.main = 0.7)
@@ -133,20 +99,17 @@ legend("topright", "Mean of std.unit estimates", col = c("Red"), lty = 1)
 hist(election$std.unit, breaks = 20, freq = F, xlim = c(-1.0, 1.0), xlab = "Standard Error Units (poll.diff)", main = "Number of SE Units Poll.Diff is from Vote.Diff (all US States + D.C.)", cex.main = 0.7)
 abline(v = mean(election$std.unit), col = "Red")
 legend("topright", "Mean of std.unit estimates", col = c("Red"), lty = 1, cex = 0.7)
-```
+
 The errors in the estimates do not look like they have mean 0. I created the scatterplot and histogram for `std.unit` and placed a red line indicating the mean `std.unit` value. The line was placed well below the mean zero. In addition, many values on the scatterplot were below mean zero and the density of the histogram was not centered at mean zero. This may imply that there is bias in the polls but we will investigate that more.
 
 ### part e
-```{r}
-# Num of states with poll differences smaller than actual election differences
-sum(election$poll.diff < election$vote.diff)
 
-# Test for independence and for poll and vote differences
-chisq.test(x = election$poll.diff, y = election$vote.diff)
+sum(election$poll.diff < election$vote.diff) # Num of states with poll differences smaller than actual election differences
 
-# P-value
-chisq.test(x = election$poll.diff, y = election$vote.diff)$p.value
-```
+chisq.test(x = election$poll.diff, y = election$vote.diff) # Test for independence and for poll and vote differences
+
+chisq.test(x = election$poll.diff, y = election$vote.diff)$p.value # P-value
+
 For independence: The null hypothesis is that the errors for all 50 states plus D.C. is independent. The alternative hypothesis says that they are dependent. Because we have a large p-value (0.2383) that is > 0.01 we fail to reject the null hypothesis and believe the two differences are independent.
 
 For poll and vote differences: The null hypothesis says there is an equally likely chance for the poll differences to be greater or less than the actual election difference (a normal distribution). Because we have a large p-value (0.2383) that is > 0.01 we fail to reject the null hypothesis and believe the distribution to be normal 99% of the time.
@@ -154,7 +117,6 @@ For poll and vote differences: The null hypothesis says there is an equally like
 # Section 4
 
 ## part a
-```{r}
 diff.state.date = subset(aug_poll, select = -c(grade)) # Remove unnecessary columns
 diff.state.date$rawpoll_clinton = (diff.state.date$rawpoll_clinton / 100) * diff.state.date$samplesize # Transform to pop. from percentage
 diff.state.date$rawpoll_trump = (diff.state.date$rawpoll_trump / 100) * diff.state.date$samplesize # Transform to pop. from percentage
@@ -183,11 +145,10 @@ rownames(diff.state.date) = c(diff.state.date[,"state"])
 diff.state.date = subset(diff.state.date, select = -c(state))
 
 head(diff.state.date[,1:5])
-```
+
 We followed a similar process to the past problems. We had to create multiple variables consisting of aggregating populations based on voting for Clinton or Trump by state and by day. We then combined this all into a single dataframe organized by columns of dates and rows of states.
 
 ## part b
-```{r}
 # Subset of swing states
 swing = c("Colorado", "Florida", "Iowa", "Minnesota", "Ohio", "Nevada", "New Hampshire", "North Carolina", "Virginia")
 swing.subset = subset(diff.state.date, rownames(diff.state.date) %in% swing)
@@ -207,7 +168,6 @@ matplot(t(flip.subset), type = "l", ylim = c(-.25, .15), xaxt = "n", ylab = "Agg
 		State Polls by Date (Flip States)", cex.lab = 0.8, cex.main = 0.75, lty = 1, col = col_set)
 legend("top", cex = 0.5, row.names(flip.subset), fill = col_set)
 axis(1, at = seq(1, 84), labels = colnames(flip.subset), cex.axis = 0.30, las = 2)
-```
 
 ## part c
 The flip states from 3c were Michigan, Pennsylvania, and Wisconsin. If we look at the second graph, the poll results of the flip states do appear to be slightly correlated and have a negative trend as the end dates become later in the year. The minimum poll results in the earlier dates never go below -0.1 but the poll results later in the dataset appear to be below 0.0 and sometimes even below -0.1. 
